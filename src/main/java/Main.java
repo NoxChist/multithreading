@@ -1,19 +1,20 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.*;
 
 public class Main {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
         }
 
-        List<Thread> threadList = new ArrayList<>(25);
-
+        ExecutorService threadPool = Executors.newFixedThreadPool(25);
+        HashMap<Future<Integer>, Integer> resultList = new HashMap<>();
         long startTs = System.currentTimeMillis(); // start time
+
         for (String text : texts) {
-            Runnable strHandler = () -> {
+            Callable<Integer> findMax = () -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -33,16 +34,23 @@ public class Main {
                     }
                 }
                 System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return maxSize;
             };
-            Thread task = new Thread(strHandler);
-            threadList.add(task);
-            task.start();
+            resultList.put(threadPool.submit(findMax), 0);
         }
-        for (Thread task : threadList) {
-            task.join();
+        for (Future<Integer> key : resultList.keySet()) {
+            resultList.put(key, key.get());
         }
+        int max = resultList
+                .values()
+                .stream()
+                .max(Integer::compare)
+                .get();
+
         long endTs = System.currentTimeMillis(); // end time
 
+        System.out.println(resultList.values());
+        System.out.println("Max: " + max);
         System.out.println("Time: " + (endTs - startTs) + "ms");
     }
 
